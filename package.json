@@ -13,15 +13,21 @@
   "scripts": {
     "start": "node server.js",
     "download-model": "node download-model.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage"
   },
   "keywords": [
     "prompt-injection",
+    "ai",
+    "agentic",
+    "llm",
     "llm",
     "security",
     "jailbreak",
     "transformers",
-    "detection"
+    "detection",
+    "library",
+    "api"
   ],
   "author": "",
   "license": "ISC",

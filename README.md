@@ -67,6 +67,53 @@ curl -X POST http://localhost:3000/api/detect \
   -d '{"text": "Ignore all previous instructions."}'
 ```
 
+## Configuration
+
+### `LOCAL_MODELS_ONLY`
+
+By default, SaferPrompt downloads the model (~395 MB) from Hugging Face on first run and caches it in `./models`. Setting `LOCAL_MODELS_ONLY` disables all network fetches so the library runs strictly from the local cache.
+
+#### Why you might want this
+
+- **Air-gapped / restricted networks** — Production servers or secure environments that cannot reach external hosts.
+- **Predictable deployments** — Guarantee that startup never blocks on a download or fails due to a transient network error.
+- **CI pipelines** — Avoid flaky builds caused by rate limits or network timeouts when pulling the model.
+- **Docker / container images** — Bundle the model at build time and run the container without outbound internet access.
+
+#### Prerequisites
+
+The model must already exist in the `./models` directory before local-only mode is enabled. Download it once ahead of time:
+
+```bash
+npm run download-model
+```
+
+If `LOCAL_MODELS_ONLY` is set and the cache is empty, the library will throw an error at startup rather than silently attempting a download.
+
+#### How to enable
+
+**Environment variable** (recommended):
+
+```bash
+LOCAL_MODELS_ONLY=true npm start
+```
+
+**`.env` file** (loaded automatically via `dotenv`):
+
+```
+LOCAL_MODELS_ONLY=true
+```
+
+**Programmatically** via `createDetector()`:
+
+```js
+import { createDetector } from "saferprompt";
+
+const detect = await createDetector({ localOnly: true });
+```
+
+Accepted values for the env var are `true` or `1`.
+
 ## Testing
 
 ```bash

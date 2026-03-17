@@ -1,0 +1,33 @@
+{
+  "name": "saferprompt",
+  "version": "0.0.1",
+  "description": "Detect prompt injection attacks using the qualifire/prompt-injection-sentinel model",
+  "type": "module",
+  "main": "index.js",
+  "contributors": [
+    {
+      "name": "Michael Mainguy",
+      "email": "mike.mainguy@gmail.com"
+    }
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "download-model": "node download-model.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "prompt-injection",
+    "llm",
+    "security",
+    "jailbreak",
+    "transformers",
+    "detection"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1"
+  }
+}

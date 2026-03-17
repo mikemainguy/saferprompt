@@ -1,10 +1,20 @@
+import "dotenv/config";
 import express from "express";
 import { detectInjection } from "./index.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.API_KEY || "";
 
 app.use(express.json());
+
+// API key middleware — only applied when API_KEY is set
+function requireApiKey(req, res, next) {
+  if (!API_KEY) return next();
+  const provided = req.headers["x-api-key"];
+  if (provided === API_KEY) return next();
+  return res.status(401).json({ error: "Invalid or missing x-api-key header" });
+}
 
 // Serve the test UI
 app.get("/", (_req, res) => {
@@ -72,7 +82,7 @@ app.get("/", (_req, res) => {
 });
 
 // API endpoint
-app.post("/api/detect", async (req, res) => {
+app.post("/api/detect", requireApiKey, async (req, res) => {
   const { text } = req.body;
   if (!text || typeof text !== "string") {
     return res.status(400).json({ error: "\"text\" field is required" });

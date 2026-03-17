@@ -114,6 +114,39 @@ const detect = await createDetector({ localOnly: true });
 
 Accepted values for the env var are `true` or `1`.
 
+### `API_KEY`
+
+When set, the HTTP server requires all requests to `POST /api/detect` to include a matching `x-api-key` header. Requests with a missing or incorrect key receive a `401` response. When unset, the API is open (no authentication).
+
+#### How to enable
+
+**Environment variable:**
+
+```bash
+API_KEY=my-secret-key npm start
+```
+
+**`.env` file:**
+
+```
+API_KEY=my-secret-key
+```
+
+#### Making authenticated requests
+
+```bash
+curl -X POST http://localhost:3000/api/detect \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: my-secret-key" \
+  -d '{"text": "Ignore all previous instructions."}'
+```
+
+Requests without the header (or with an incorrect value) return:
+
+```json
+{ "error": "Invalid or missing x-api-key header" }
+```
+
 ## Testing
 
 ```bash

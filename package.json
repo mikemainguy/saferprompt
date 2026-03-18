@@ -14,7 +14,10 @@
     "start": "node server.js",
     "download-model": "node download-model.js",
     "test": "node --test",
-    "test:coverage": "node --test --experimental-test-coverage"
+    "test:coverage": "node --test --experimental-test-coverage",
+    "docker:build": "docker build --no-cache -t michaelmainguy/saferprompt:latest -t michaelmainguy/saferprompt:$(node -p \"require('./package.json').version\") .",
+    "docker:publish": "npm run docker:build && docker push michaelmainguy/saferprompt",
+    "npm:publish": "npm publish"
   },
   "keywords": [
     "prompt-injection",

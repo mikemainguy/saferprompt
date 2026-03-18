@@ -200,6 +200,11 @@ Requests without the header (or with an incorrect value) return:
 { "error": "Invalid or missing x-api-key header" }
 ```
 
+## Additional Documentation
+
+- [Protocol Configuration](https://github.com/mikemainguy/saferprompt/blob/main/PROTOCOLCONFIG.md) — HTTP/2 and TLS setup guide
+- [Docker Guide](https://github.com/mikemainguy/saferprompt/blob/main/DOCKER.md) — Building and running with Docker
+
 ## Testing
 
 ```bash

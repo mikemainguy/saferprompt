@@ -24,7 +24,10 @@ export function createApp({
     if (request.url === "/") return;
     const provided = request.headers["x-api-key"];
     if (provided !== apiKey) {
-      reply.code(401).send({ error: "Invalid or missing x-api-key header" });
+      reply
+        .code(401)
+        .header("www-authenticate", 'Bearer realm="saferprompt"')
+        .send({ error: "Invalid or missing x-api-key header" });
     }
   });
 
@@ -97,26 +100,23 @@ export function createApp({
   fastify.post("/api/detect", async (request, reply) => {
     const { text } = request.body || {};
     if (!text || typeof text !== "string") {
-      return reply.code(400).send({ error: '"text" field is required' });
+      reply.code(400);
+      return { error: '"text" field is required' };
     }
     const start = Date.now();
     const result = await detectInjection(text);
     const ms = Date.now() - start;
+    if (responseMode === "body") {
+      return { ...result, ms };
+    }
     reply.header("x-saferprompt-label", result.label);
     reply.header("x-saferprompt-score", String(result.score));
     reply.header("x-saferprompt-is-injection", String(result.isInjection));
     reply.header("x-saferprompt-ms", String(ms));
     if (responseMode === "headers") {
-      return reply.code(headersSuccessCode).send();
+      reply.code(headersSuccessCode);
+      return;
     }
-    if (responseMode === "both") {
-      return { ...result, ms };
-    }
-    // "body" mode — return JSON without custom headers
-    reply.removeHeader("x-saferprompt-label");
-    reply.removeHeader("x-saferprompt-score");
-    reply.removeHeader("x-saferprompt-is-injection");
-    reply.removeHeader("x-saferprompt-ms");
     return { ...result, ms };
   });
 

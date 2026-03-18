@@ -133,7 +133,7 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
       assert.strictEqual(res.statusCode, 200);
     });
 
-    it("POST /api/detect without key returns 401", async () => {
+    it("POST /api/detect without key returns 401 with WWW-Authenticate", async () => {
       const app = createApp({ apiKey: "test-secret" });
       const res = await app.inject({
         method: "POST",
@@ -141,9 +141,10 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
         payload: { text: "hello" },
       });
       assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.headers["www-authenticate"], 'Bearer realm="saferprompt"');
     });
 
-    it("POST /api/detect with wrong key returns 401", async () => {
+    it("POST /api/detect with wrong key returns 401 with WWW-Authenticate", async () => {
       const app = createApp({ apiKey: "test-secret" });
       const res = await app.inject({
         method: "POST",
@@ -152,6 +153,7 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
         payload: { text: "hello" },
       });
       assert.strictEqual(res.statusCode, 401);
+      assert.strictEqual(res.headers["www-authenticate"], 'Bearer realm="saferprompt"');
     });
 
     it("POST /api/detect with correct key succeeds", async () => {

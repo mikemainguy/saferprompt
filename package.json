@@ -1,6 +1,6 @@
 {
   "name": "saferprompt",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Detect prompt injection attacks using the qualifire/prompt-injection-sentinel model",
   "type": "module",
   "main": "index.js",

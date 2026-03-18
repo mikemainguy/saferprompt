@@ -56,7 +56,7 @@ const result = await detect("What is the capital of France?");
 npm start
 ```
 
-This starts an Express server on port 3000 (override with `PORT` env var). It provides:
+This starts a Fastify server on port 3000 (override with `PORT` env var). It provides:
 
 - **`GET /`** — A web UI for testing prompts interactively
 - **`POST /api/detect`** — JSON API
@@ -113,6 +113,59 @@ const detect = await createDetector({ localOnly: true });
 ```
 
 Accepted values for the env var are `true` or `1`.
+
+### `HTTP2`
+
+Set to `true` or `1` to enable HTTP/2. When combined with TLS certificates, the server uses standard browser-compatible HTTP/2 over TLS. Without TLS, the server uses HTTP/2 cleartext (h2c), which is supported by programmatic clients but not browsers.
+
+```bash
+HTTP2=true npm start
+```
+
+> **Note:** Browsers require TLS for HTTP/2. Use `HTTP2=true` together with TLS certificate configuration for browser-compatible HTTP/2.
+
+### TLS Certificate Configuration
+
+Enable HTTPS by providing a TLS certificate and private key. Two methods are supported — file paths take precedence over inline values if both are set.
+
+| Variable | Description |
+|---|---|
+| `TLS_CERT_FILE` | Path to PEM-encoded certificate file |
+| `TLS_KEY_FILE` | Path to PEM-encoded private key file |
+| `TLS_CERT` | Inline PEM certificate content (fallback if `TLS_CERT_FILE` not set) |
+| `TLS_KEY` | Inline PEM private key content (fallback if `TLS_KEY_FILE` not set) |
+
+Both a certificate and key must be provided — setting only one causes the server to exit with an error.
+
+#### HTTPS only
+
+```bash
+TLS_CERT_FILE=./cert.pem TLS_KEY_FILE=./key.pem npm start
+```
+
+#### HTTP/2 over TLS
+
+```bash
+HTTP2=true TLS_CERT_FILE=./cert.pem TLS_KEY_FILE=./key.pem npm start
+```
+
+#### Inline PEM values
+
+```bash
+TLS_CERT="$(cat cert.pem)" TLS_KEY="$(cat key.pem)" npm start
+```
+
+#### Generating a self-signed certificate for development
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365 -subj "/CN=localhost"
+```
+
+Then start the server with the generated files:
+
+```bash
+TLS_CERT_FILE=./cert.pem TLS_KEY_FILE=./key.pem npm start
+```
 
 ### `API_KEY`
 

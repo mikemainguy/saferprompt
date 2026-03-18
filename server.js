@@ -1,24 +1,58 @@
 import "dotenv/config";
-import express from "express";
+import { readFileSync } from "node:fs";
+import Fastify from "fastify";
 import { detectInjection } from "./index.js";
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || "";
+const HTTP2 = process.env.HTTP2 === "true" || process.env.HTTP2 === "1";
 
-app.use(express.json());
-
-// API key middleware — only applied when API_KEY is set
-function requireApiKey(req, res, next) {
-  if (!API_KEY) return next();
-  const provided = req.headers["x-api-key"];
-  if (provided === API_KEY) return next();
-  return res.status(401).json({ error: "Invalid or missing x-api-key header" });
+// Resolve TLS cert and key: file paths take precedence over inline values
+let tlsCert;
+let tlsKey;
+if (process.env.TLS_CERT_FILE) {
+  tlsCert = readFileSync(process.env.TLS_CERT_FILE);
+}
+if (process.env.TLS_KEY_FILE) {
+  tlsKey = readFileSync(process.env.TLS_KEY_FILE);
+}
+if (!tlsCert && process.env.TLS_CERT) {
+  tlsCert = process.env.TLS_CERT;
+}
+if (!tlsKey && process.env.TLS_KEY) {
+  tlsKey = process.env.TLS_KEY;
 }
 
+// Validate: both cert and key must be present, or both absent
+if ((tlsCert && !tlsKey) || (!tlsCert && tlsKey)) {
+  console.error("Error: Both TLS certificate and key must be provided. Set both TLS_CERT_FILE/TLS_KEY_FILE (or TLS_CERT/TLS_KEY), not just one.");
+  process.exit(1);
+}
+
+const hasTls = !!(tlsCert && tlsKey);
+const fastifyOpts = {};
+if (HTTP2) {
+  fastifyOpts.http2 = true;
+}
+if (hasTls) {
+  fastifyOpts.https = { cert: tlsCert, key: tlsKey };
+}
+
+const fastify = Fastify(fastifyOpts);
+
+// API key hook — only applied when API_KEY is set
+fastify.addHook("onRequest", async (request, reply) => {
+  if (!API_KEY) return;
+  if (request.url === "/") return;
+  const provided = request.headers["x-api-key"];
+  if (provided !== API_KEY) {
+    reply.code(401).send({ error: "Invalid or missing x-api-key header" });
+  }
+});
+
 // Serve the test UI
-app.get("/", (_req, res) => {
-  res.send(`<!DOCTYPE html>
+fastify.get("/", async (_request, reply) => {
+  reply.type("text/html").send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -82,17 +116,21 @@ app.get("/", (_req, res) => {
 });
 
 // API endpoint
-app.post("/api/detect", requireApiKey, async (req, res) => {
-  const { text } = req.body;
+fastify.post("/api/detect", async (request, reply) => {
+  const { text } = request.body || {};
   if (!text || typeof text !== "string") {
-    return res.status(400).json({ error: "\"text\" field is required" });
+    return reply.code(400).send({ error: "\"text\" field is required" });
   }
   const start = Date.now();
   const result = await detectInjection(text);
-  res.json({ ...result, ms: Date.now() - start });
+  return { ...result, ms: Date.now() - start };
 });
 
 // Pre-load the model, then start listening
 console.log("Loading model (first run downloads ~395M params)...");
 await detectInjection("warmup");
-app.listen(PORT, () => console.log(`SaferPrompt running at http://localhost:${PORT}`));
+fastify.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
+  if (err) { console.error(err); process.exit(1); }
+  const protocol = hasTls ? "https" : "http";
+  console.log(`SaferPrompt running at ${protocol}://localhost:${PORT}`);
+});

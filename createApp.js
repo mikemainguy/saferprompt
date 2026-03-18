@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { detectInjection } from "./index.js";
+import { logResult } from "./logger.js";
 
 /**
  * Creates and returns a configured Fastify instance.
@@ -106,6 +107,7 @@ export function createApp({
     const start = Date.now();
     const result = await detectInjection(text);
     const ms = Date.now() - start;
+    logResult({ text, ...result, ms });
     if (responseMode === "body") {
       return { ...result, ms };
     }

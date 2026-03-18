@@ -2,6 +2,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { detectInjection } from "./index.js";
 import { createApp } from "./createApp.js";
+import { getActiveDestinations } from "./logger.js";
 
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || "";
@@ -54,4 +55,9 @@ fastify.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
   if (err) { console.error(err); process.exit(1); }
   const protocol = hasTls ? "https" : "http";
   console.log(`SaferPrompt running at ${protocol}://localhost:${PORT}`);
+  const logDests = getActiveDestinations();
+  if (logDests.length) {
+    console.log("Logging active:");
+    logDests.forEach((d) => console.log(`  ${d}`));
+  }
 });

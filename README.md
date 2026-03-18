@@ -114,6 +114,44 @@ const detect = await createDetector({ localOnly: true });
 
 Accepted values for the env var are `true` or `1`.
 
+### Request/Response Logging
+
+SaferPrompt supports opt-in JSONL logging of detection results, controlled entirely by environment variables. By default, no logging occurs.
+
+| Variable | What gets logged | Value |
+|---|---|---|
+| `INJECTION_LOG` | Requests classified as INJECTION | file path, `"stdout"`, or `"stderr"` |
+| `BENIGN_LOG` | Requests classified as SAFE | file path, `"stdout"`, or `"stderr"` |
+| `ALL_LOG` | All requests regardless of classification | file path, `"stdout"`, or `"stderr"` |
+
+Multiple variables can be set simultaneously. File paths append JSONL (one JSON object per line); the parent directory must already exist.
+
+Each log line is a JSON object:
+
+```json
+{"ts":"2026-03-18T12:34:56.789Z","text":"user input...","label":"INJECTION","score":0.9987,"isInjection":true,"ms":42}
+```
+
+#### Examples
+
+Log injections to stderr:
+
+```bash
+INJECTION_LOG=stderr npm start
+```
+
+Log all requests to a file:
+
+```bash
+ALL_LOG=/var/log/saferprompt/all.jsonl npm start
+```
+
+Log injections to stderr and all requests to a file:
+
+```bash
+INJECTION_LOG=stderr ALL_LOG=/var/log/saferprompt/all.jsonl npm start
+```
+
 ### `HTTP2`
 
 Set to `true` or `1` to enable HTTP/2. When combined with TLS certificates, the server uses standard browser-compatible HTTP/2 over TLS. Without TLS, the server uses HTTP/2 cleartext (h2c), which is supported by programmatic clients but not browsers.

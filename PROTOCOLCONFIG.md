@@ -6,6 +6,8 @@ SaferPrompt supports HTTP/1.1, HTTPS, and HTTP/2 via environment variables. No c
 
 | Variable | Default | Description |
 |---|---|---|
+| `DISABLE_UI` | *(unset)* | Set to `true` or `1` to disable the HTML test UI on `GET /` |
+| `HOST` | `0.0.0.0` | Network interface to bind to (`0.0.0.0` for all, `127.0.0.1` for localhost only, or a specific IP) |
 | `HTTP2` | *(unset)* | Set to `true` or `1` to enable HTTP/2 |
 | `TLS_CERT_FILE` | *(unset)* | Path to a PEM-encoded certificate file |
 | `TLS_KEY_FILE` | *(unset)* | Path to a PEM-encoded private key file |

@@ -5,10 +5,12 @@ import { createApp } from "./createApp.js";
 import { getActiveDestinations } from "./logger.js";
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "0.0.0.0";
 const API_KEY = process.env.API_KEY || "";
 const HTTP2 = process.env.HTTP2 === "true" || process.env.HTTP2 === "1";
 const RESPONSE_MODE = (process.env.RESPONSE_MODE || "body").toLowerCase(); // "body", "headers", or "both"
 const HEADERS_SUCCESS_CODE = parseInt(process.env.HEADERS_SUCCESS_CODE, 10) === 204 ? 204 : 200;
+const DISABLE_UI = process.env.DISABLE_UI === "true" || process.env.DISABLE_UI === "1";
 
 // Resolve TLS cert and key: file paths take precedence over inline values
 let tlsCert;
@@ -45,13 +47,14 @@ const fastify = createApp({
   apiKey: API_KEY,
   responseMode: RESPONSE_MODE,
   headersSuccessCode: HEADERS_SUCCESS_CODE,
+  disableUi: DISABLE_UI,
   fastifyOpts,
 });
 
 // Pre-load the model, then start listening
 console.log("Loading model (first run downloads ~395M params)...");
 await detectInjection("warmup");
-fastify.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
+fastify.listen({ port: PORT, host: HOST }, (err) => {
   if (err) { console.error(err); process.exit(1); }
   const protocol = hasTls ? "https" : "http";
   console.log(`SaferPrompt running at ${protocol}://localhost:${PORT}`);

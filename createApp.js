@@ -9,12 +9,14 @@ import { logResult } from "./logger.js";
  * @param {string} [config.apiKey]        — require this key in x-api-key header
  * @param {string} [config.responseMode]  — "body" | "headers" | "both"
  * @param {number} [config.headersSuccessCode] — 200 or 204 (only relevant for "headers" mode)
+ * @param {boolean} [config.disableUi]    — disable the HTML test UI on GET /
  * @param {object} [config.fastifyOpts]   — extra Fastify constructor options (http2, https, etc.)
  */
 export function createApp({
   apiKey = "",
   responseMode = "body",
   headersSuccessCode = 200,
+  disableUi = false,
   fastifyOpts = {},
 } = {}) {
   const fastify = Fastify(fastifyOpts);
@@ -32,7 +34,12 @@ export function createApp({
     }
   });
 
-  // Serve the test UI
+  // Serve the test UI (unless disabled)
+  if (disableUi) {
+    fastify.get("/", async (_request, reply) => {
+      reply.code(404).send({ error: "UI is disabled" });
+    });
+  } else {
   fastify.get("/", async (_request, reply) => {
     reply.type("text/html").send(`<!DOCTYPE html>
 <html lang="en">
@@ -96,6 +103,7 @@ export function createApp({
 </body>
 </html>`);
   });
+  }
 
   // API endpoint
   fastify.post("/api/detect", async (request, reply) => {

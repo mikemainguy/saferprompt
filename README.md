@@ -56,9 +56,9 @@ const result = await detect("What is the capital of France?");
 npm start
 ```
 
-This starts a Fastify server on port 3000 (override with `PORT` env var). It provides:
+This starts a Fastify server on port 3000 (override with `PORT` env var), listening on all interfaces by default (override with `HOST` env var). It provides:
 
-- **`GET /`** — A web UI for testing prompts interactively
+- **`GET /`** — A web UI for testing prompts interactively (disable with `DISABLE_UI=true`)
 - **`POST /api/detect`** — JSON API
 
 ```bash
@@ -236,6 +236,28 @@ Requests without the header (or with an incorrect value) return:
 
 ```json
 { "error": "Invalid or missing x-api-key header" }
+```
+
+### `DISABLE_UI`
+
+Set to `true` or `1` to disable the HTML test UI served on `GET /`. When disabled, the route returns a `404` JSON response. The `/api/detect` endpoint is unaffected.
+
+```bash
+DISABLE_UI=true npm start
+```
+
+### `HOST`
+
+Controls which network interface the server binds to. Defaults to `0.0.0.0` (all interfaces).
+
+| Value | Behavior |
+|---|---|
+| `0.0.0.0` | Listen on all interfaces (default) |
+| `127.0.0.1` or `localhost` | Localhost only — not reachable from other machines |
+| A specific IP (e.g., `192.168.1.50`) | Listen only on that interface |
+
+```bash
+HOST=127.0.0.1 npm start
 ```
 
 ## Additional Documentation

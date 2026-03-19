@@ -1,6 +1,6 @@
 {
   "name": "saferprompt",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Detect prompt injection attacks using the qualifire/prompt-injection-sentinel model",
   "type": "module",
   "main": "index.js",
@@ -16,7 +16,7 @@
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage",
     "docker:build": "docker build --no-cache -t michaelmainguy/saferprompt:latest -t michaelmainguy/saferprompt:$(node -p \"require('./package.json').version\") .",
-    "docker:publish": "npm run docker:build && docker push michaelmainguy/saferprompt",
+    "docker:publish": "docker buildx build --platform linux/amd64,linux/arm64 --no-cache -t michaelmainguy/saferprompt:latest -t michaelmainguy/saferprompt:$(node -p \"require('./package.json').version\") --push .",
     "npm:publish": "npm publish"
   },
   "keywords": [

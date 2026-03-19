@@ -52,6 +52,7 @@ The container has two environment variables baked in via the Dockerfile:
 |---|---|---|
 | `LOCAL_MODELS_ONLY` | `true` | When `true`, the app uses only the model baked into the image and makes no network requests to HuggingFace. Set to `false` if you want the app to fetch model updates at startup. |
 | `PORT` | `3000` | The port the Fastify server listens on inside the container. |
+| `HOST` | `0.0.0.0` | The network interface to bind to. Use `127.0.0.1` for localhost only, or a specific IP. |
 
 There is also an optional variable not set by default:
 
@@ -63,6 +64,7 @@ There is also an optional variable not set by default:
 | `TLS_KEY_FILE` | *(unset)* | Path to PEM-encoded private key file inside the container. |
 | `TLS_CERT` | *(unset)* | Inline PEM certificate content (fallback if `TLS_CERT_FILE` not set). |
 | `TLS_KEY` | *(unset)* | Inline PEM private key content (fallback if `TLS_KEY_FILE` not set). |
+| `DISABLE_UI` | *(unset)* | Set to `true` or `1` to disable the HTML test UI on `GET /`. |
 
 ### Overriding environment variables at runtime
 

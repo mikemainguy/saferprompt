@@ -11,6 +11,11 @@ const HTTP2 = process.env.HTTP2 === "true" || process.env.HTTP2 === "1";
 const RESPONSE_MODE = (process.env.RESPONSE_MODE || "body").toLowerCase(); // "body", "headers", or "both"
 const HEADERS_SUCCESS_CODE = parseInt(process.env.HEADERS_SUCCESS_CODE, 10) === 204 ? 204 : 200;
 const DISABLE_UI = process.env.DISABLE_UI === "true" || process.env.DISABLE_UI === "1";
+const HEALTH_CHECKS = process.env.HEALTH_CHECKS || "model,uptime,memory,requests,eventloop";
+const HEALTH_CACHE_TTL_MS = parseInt(process.env.HEALTH_CACHE_TTL_MS, 10) || 5000;
+const HEALTH_HEAP_WARN_PERCENT = parseInt(process.env.HEALTH_HEAP_WARN_PERCENT, 10) || 85;
+const HEALTH_EVENTLOOP_WARN_MS = parseInt(process.env.HEALTH_EVENTLOOP_WARN_MS, 10) || 100;
+const HEALTH_METRICS_WINDOW_MS = parseInt(process.env.HEALTH_METRICS_WINDOW_MS, 10) || 300000;
 
 // Resolve TLS cert and key: file paths take precedence over inline values
 let tlsCert;
@@ -49,6 +54,13 @@ const fastify = createApp({
   headersSuccessCode: HEADERS_SUCCESS_CODE,
   disableUi: DISABLE_UI,
   fastifyOpts,
+  healthChecks: {
+    checks: HEALTH_CHECKS,
+    cacheTtlMs: HEALTH_CACHE_TTL_MS,
+    heapWarnPercent: HEALTH_HEAP_WARN_PERCENT,
+    eventLoopWarnMs: HEALTH_EVENTLOOP_WARN_MS,
+    metricsWindowMs: HEALTH_METRICS_WINDOW_MS,
+  },
 });
 
 // Pre-load the model, then start listening

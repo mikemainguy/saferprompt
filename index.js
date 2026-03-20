@@ -45,6 +45,15 @@ export async function createDetector({ localOnly } = {}) {
 }
 
 let _singleton = null;
+let _modelReady = false;
+
+/**
+ * Returns true once the singleton model has been successfully loaded.
+ * @returns {boolean}
+ */
+export function isModelReady() {
+  return _modelReady;
+}
 
 /**
  * Convenience function that uses a lazy singleton detector.
@@ -60,5 +69,6 @@ export async function detectInjection(text) {
     _singleton = createDetector();
   }
   const detect = await _singleton;
+  _modelReady = true;
   return detect(text);
 }

@@ -202,6 +202,83 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
     });
   });
 
+  describe("Health check endpoints", () => {
+    it("GET /health returns application/health+json with RFC fields", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health" });
+      assert.ok(res.headers["content-type"].includes("application/health+json"));
+      const body = JSON.parse(res.body);
+      assert.ok(["pass", "warn", "fail"].includes(body.status));
+      assert.strictEqual(body.serviceId, "saferprompt");
+      assert.strictEqual(body.description, "Prompt injection detection service");
+      assert.ok(body.version);
+      assert.ok(body.checks);
+      assert.ok(body.links);
+    });
+
+    it("GET /health returns 200 when model is ready", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health" });
+      assert.strictEqual(res.statusCode, 200);
+      const body = JSON.parse(res.body);
+      assert.ok(body.status === "pass" || body.status === "warn");
+    });
+
+    it("GET /health includes expected check keys", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health" });
+      const body = JSON.parse(res.body);
+      assert.ok("model:ready" in body.checks);
+      assert.ok("uptime:process" in body.checks);
+      assert.ok("memory:heap" in body.checks);
+    });
+
+    it("GET /health/live always returns 200", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health/live" });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.headers["content-type"].includes("application/health+json"));
+      const body = JSON.parse(res.body);
+      assert.strictEqual(body.status, "pass");
+    });
+
+    it("GET /health/ready returns 200 when model is loaded", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health/ready" });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.headers["content-type"].includes("application/health+json"));
+      const body = JSON.parse(res.body);
+      assert.strictEqual(body.status, "pass");
+    });
+
+    it("health endpoints bypass API key auth", async () => {
+      const app = createApp({ apiKey: "test-secret" });
+      const [h, live, ready] = await Promise.all([
+        app.inject({ method: "GET", url: "/health" }),
+        app.inject({ method: "GET", url: "/health/live" }),
+        app.inject({ method: "GET", url: "/health/ready" }),
+      ]);
+      assert.strictEqual(h.statusCode, 200);
+      assert.strictEqual(live.statusCode, 200);
+      assert.strictEqual(ready.statusCode, 200);
+    });
+
+    it("GET /health check entries have required RFC fields", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/health" });
+      const body = JSON.parse(res.body);
+      for (const [key, entries] of Object.entries(body.checks)) {
+        assert.ok(Array.isArray(entries), `${key} should be an array`);
+        for (const entry of entries) {
+          assert.ok("componentType" in entry, `${key} missing componentType`);
+          assert.ok("observedValue" in entry, `${key} missing observedValue`);
+          assert.ok("status" in entry, `${key} missing status`);
+          assert.ok("time" in entry, `${key} missing time`);
+        }
+      }
+    });
+  });
+
   describe("Input validation", () => {
     it("empty body returns 400", async () => {
       const app = createApp();

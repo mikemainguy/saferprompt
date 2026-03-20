@@ -6,6 +6,7 @@ import swagger from "@fastify/swagger";
 import { marked } from "marked";
 import { detectInjection } from "./index.js";
 import { logResult } from "./logger.js";
+import { createMetricsCollector } from "./healthCheck.js";
 import pkg from "./package.json" with { type: "json" };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,6 +15,7 @@ function renderDocs() {
   const docs = [
     { id: "readme", label: "README", file: "README.md" },
     { id: "protocol", label: "Protocol Config", file: "PROTOCOLCONFIG.md" },
+    { id: "health", label: "Health Check", file: "HEALTH_CHECK.md" },
     { id: "docker", label: "Docker", file: "DOCKER.md" },
   ];
   return docs.map((d) => {
@@ -32,6 +34,7 @@ function renderDocs() {
  * @param {number} [config.headersSuccessCode] — 200 or 204 (only relevant for "headers" mode)
  * @param {boolean} [config.disableUi]    — disable the HTML test UI on GET /
  * @param {object} [config.fastifyOpts]   — extra Fastify constructor options (http2, https, etc.)
+ * @param {object} [config.healthChecks]  — health check configuration
  */
 export function createApp({
   apiKey = "",
@@ -39,6 +42,7 @@ export function createApp({
   headersSuccessCode = 200,
   disableUi = false,
   fastifyOpts = {},
+  healthChecks = {},
 } = {}) {
   const fastify = Fastify({
     ...fastifyOpts,
@@ -56,6 +60,8 @@ export function createApp({
     },
   });
 
+  const metrics = createMetricsCollector(healthChecks);
+
   // Register all routes inside a plugin so they are added after @fastify/swagger
   // loads its onRoute hook — this ensures swagger discovers every route schema.
   fastify.register(function routes(instance, _opts, done) {
@@ -68,7 +74,7 @@ export function createApp({
     // API key hook — only applied when apiKey is set
     instance.addHook("onRequest", async (request, reply) => {
       if (!apiKey) return;
-      if (request.url === "/" || request.url === "/llms.txt") return;
+      if (request.url === "/" || request.url === "/llms.txt" || request.url.startsWith("/health")) return;
       const provided = request.headers["x-api-key"];
       if (provided !== apiKey) {
         reply
@@ -139,6 +145,7 @@ export function createApp({
       const start = Date.now();
       const result = await detectInjection(text);
       const ms = Date.now() - start;
+      request.detectMs = ms;
       logResult({ text, ...result, ms });
       if (responseMode === "body") {
         return { ...result, ms };
@@ -152,6 +159,42 @@ export function createApp({
         return;
       }
       return { ...result, ms };
+    });
+
+    // Metrics collection hook
+    instance.addHook("onResponse", (request, reply, done) => {
+      metrics.onResponse(request, reply, done);
+    });
+
+    // Health check endpoints
+    const healthContentType = "application/health+json";
+
+    instance.get("/health", {
+      schema: {
+        description: "Full RFC-compliant health check",
+      },
+    }, async (_request, reply) => {
+      const body = metrics.getHealthResponse();
+      const code = body.status === "fail" ? 503 : 200;
+      reply.code(code).type(healthContentType).send(body);
+    });
+
+    instance.get("/health/live", {
+      schema: {
+        description: "Liveness probe — process is running",
+      },
+    }, async (_request, reply) => {
+      reply.type(healthContentType).send(metrics.getLiveResponse());
+    });
+
+    instance.get("/health/ready", {
+      schema: {
+        description: "Readiness probe — model is loaded",
+      },
+    }, async (_request, reply) => {
+      const body = metrics.getReadyResponse();
+      const code = body.status === "pass" ? 200 : 503;
+      reply.code(code).type(healthContentType).send(body);
     });
 
     done();

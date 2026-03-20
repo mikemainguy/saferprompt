@@ -264,6 +264,7 @@ HOST=127.0.0.1 npm start
 ## Additional Documentation
 
 - [Protocol Configuration](https://github.com/mikemainguy/saferprompt/blob/main/PROTOCOLCONFIG.md) — HTTP/2 and TLS setup guide
+- [Health Check](https://github.com/mikemainguy/saferprompt/blob/main/HEALTH_CHECK.md) — Health check endpoints, Kubernetes probes, and monitoring
 - [Docker Guide](https://github.com/mikemainguy/saferprompt/blob/main/DOCKER.md) — Building and running with Docker
 
 ## Testing

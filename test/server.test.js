@@ -207,5 +207,23 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
       assert.ok(res.headers["content-type"].includes("text/html"));
       assert.ok(res.body.includes("<!DOCTYPE html>"));
     });
+
+    it("GET / includes doc tabs for README, Protocol Config, and Docker", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/" });
+      assert.ok(res.body.includes('data-tab="readme"'), "missing README tab");
+      assert.ok(res.body.includes('data-tab="protocol"'), "missing Protocol Config tab");
+      assert.ok(res.body.includes('data-tab="docker"'), "missing Docker tab");
+      assert.ok(res.body.includes('id="tab-readme"'), "missing README panel");
+      assert.ok(res.body.includes('id="tab-protocol"'), "missing Protocol Config panel");
+      assert.ok(res.body.includes('id="tab-docker"'), "missing Docker panel");
+    });
+
+    it("GET / renders markdown as HTML in doc panels", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/" });
+      // Rendered markdown should contain HTML tags, not raw markdown
+      assert.ok(res.body.includes('<h1'), "doc panels should contain rendered HTML headings");
+    });
   });
 });

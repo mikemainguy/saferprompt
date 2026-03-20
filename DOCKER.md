@@ -1,25 +1,28 @@
 # Docker Guide for SaferPrompt
 
-## Prerequisites
+## Quickstart
 
+Pull and run the pre-built image in one step — no build required:
+
+```bash
+docker run -p 3000:3000 michaelmainguy/saferprompt
+```
+
+Then open http://localhost:3000 in your browser or test with curl:
+
+```bash
+curl -X POST http://localhost:3000/api/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text": "hello"}'
+```
+
+The image includes the ML model, so it starts immediately with no download delay.
+
+# Customization (custom docker containers)
+
+##
 SaferPrompt's Docker build downloads and processes a ~713MB ML model, which requires at least **8GB of memory** available to the Docker build process.
 
-### Colima (macOS)
-
-If you use Colima as your Docker runtime, the VM memory defaults to 2GB — not enough for the model download step. Increase it before building:
-
-```bash
-colima stop
-colima start --memory 8
-```
-
-To make this persistent, edit the Colima config:
-
-```bash
-colima template
-```
-
-Change the `memory` field to `8` (or higher), then save and restart.
 
 ### Docker Desktop
 
@@ -135,3 +138,20 @@ Expected response:
 ```
 
 You can also open http://localhost:3000 in a browser to use the test UI.
+
+### Colima (macOS)
+
+If you use Colima as your Docker runtime, the VM memory defaults to 2GB — not enough for the model download step. Increase it before building:
+
+```bash
+colima stop
+colima start --memory 8
+```
+
+To make this persistent, edit the Colima config:
+
+```bash
+colima template
+```
+
+Change the `memory` field to `8` (or higher), then save and restart.

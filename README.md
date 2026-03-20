@@ -59,6 +59,7 @@ npm start
 This starts a Fastify server on port 3000 (override with `PORT` env var), listening on all interfaces by default (override with `HOST` env var). It provides:
 
 - **`GET /`** — A web UI for testing prompts interactively (disable with `DISABLE_UI=true`)
+- **`GET /api/openapi.json`** — OpenAPI (Swagger) specification
 - **`POST /api/detect`** — JSON API
 
 ```bash

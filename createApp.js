@@ -87,107 +87,11 @@ export function createApp({
     const docs = renderDocs();
     const docTabs = docs.map((d) => `<button class="tab" data-tab="${d.id}">${d.label}</button>`).join("\n      ");
     const docPanels = docs.map((d) => `<div class="tab-panel doc-content" id="tab-${d.id}">${d.html}</div>`).join("\n    ");
+    const uiTemplate = readFileSync(join(__dirname, "ui.html"), "utf8");
+    const uiHtml = uiTemplate.replace("{{DOC_TABS}}", docTabs).replace("{{DOC_PANELS}}", docPanels);
 
     instance.get("/", async (_request, reply) => {
-      reply.type("text/html").send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SaferPrompt</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
-    .container { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
-    .swagger-link { font-size: 0.75rem; color: #60a5fa; text-decoration: none; border: 1px solid #334155; padding: 0.2rem 0.5rem; border-radius: 4px; }
-    .swagger-link:hover { border-color: #60a5fa; }
-    .tab-bar { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid #334155; }
-    .tab { padding: 0.5rem 1rem; border: none; background: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-    .tab:hover { color: #e2e8f0; }
-    .tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-    textarea { width: 100%; height: 120px; padding: 0.75rem; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; font-size: 1rem; resize: vertical; }
-    textarea:focus { outline: none; border-color: #60a5fa; }
-    button.analyze { margin-top: 0.75rem; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; background: #3b82f6; color: #fff; font-size: 1rem; cursor: pointer; }
-    button.analyze:hover { background: #2563eb; }
-    button.analyze:disabled { opacity: 0.5; cursor: not-allowed; }
-    #result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; background: #1e293b; display: none; }
-    .label { font-size: 1.25rem; font-weight: 700; }
-    .safe { color: #4ade80; }
-    .injection { color: #f87171; }
-    .meta { margin-top: 0.5rem; color: #94a3b8; font-size: 0.875rem; }
-    .doc-content { line-height: 1.7; }
-    .doc-content h1, .doc-content h2, .doc-content h3 { color: #f1f5f9; margin: 1.5rem 0 0.75rem; }
-    .doc-content h1 { font-size: 1.5rem; }
-    .doc-content h2 { font-size: 1.25rem; }
-    .doc-content h3 { font-size: 1.1rem; }
-    .doc-content p { margin: 0.5rem 0; }
-    .doc-content code { background: #1e293b; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-    .doc-content pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
-    .doc-content pre code { padding: 0; background: none; }
-    .doc-content a { color: #60a5fa; }
-    .doc-content ul, .doc-content ol { margin: 0.5rem 0 0.5rem 1.5rem; }
-    .doc-content table { border-collapse: collapse; margin: 0.75rem 0; }
-    .doc-content th, .doc-content td { border: 1px solid #334155; padding: 0.4rem 0.75rem; }
-    .doc-content th { background: #1e293b; }
-    .doc-content blockquote { border-left: 3px solid #60a5fa; padding-left: 1rem; color: #94a3b8; margin: 0.75rem 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>SaferPrompt <a href="/api/openapi.json" class="swagger-link">OpenAPI Spec</a></h1>
-    <div class="tab-bar">
-      <button class="tab active" data-tab="analyzer">Analyzer</button>
-      ${docTabs}
-    </div>
-    <div class="tab-panel active" id="tab-analyzer">
-      <textarea id="prompt" placeholder="Enter a prompt to test..."></textarea>
-      <button class="analyze" id="btn" onclick="analyze()">Analyze</button>
-      <div id="result"></div>
-    </div>
-    ${docPanels}
-  </div>
-  <script>
-    document.querySelectorAll(".tab").forEach(function(tab) {
-      tab.addEventListener("click", function() {
-        document.querySelectorAll(".tab").forEach(function(t) { t.classList.remove("active"); });
-        document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.remove("active"); });
-        tab.classList.add("active");
-        document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
-      });
-    });
-    async function analyze() {
-      const text = document.getElementById("prompt").value.trim();
-      if (!text) return;
-      const btn = document.getElementById("btn");
-      const res = document.getElementById("result");
-      btn.disabled = true;
-      btn.textContent = "Analyzing...";
-      res.style.display = "none";
-      try {
-        const r = await fetch("/api/detect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
-        const data = await r.json();
-        const cls = data.isInjection ? "injection" : "safe";
-        res.innerHTML =
-          '<div class="label ' + cls + '">' + data.label + '</div>' +
-          '<div class="meta">Score: ' + data.score.toFixed(4) + ' &middot; ' + data.ms + ' ms</div>';
-        res.style.display = "block";
-      } catch (e) {
-        res.innerHTML = '<div class="label injection">Error: ' + e.message + '</div>';
-        res.style.display = "block";
-      }
-      btn.disabled = false;
-      btn.textContent = "Analyze";
-    }
-  </script>
-</body>
-</html>`);
+      reply.type("text/html").send(uiHtml);
     });
     }
 

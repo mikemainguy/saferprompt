@@ -64,6 +64,18 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
       assert.strictEqual(res.body, "");
     });
 
+    it("empty string text returns 400", async () => {
+      const app = createApp({ responseMode: "headers" });
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        payload: { text: "" },
+      });
+      assert.strictEqual(res.statusCode, 400);
+      const body = JSON.parse(res.body);
+      assert.strictEqual(body.error, '"text" field is required');
+    });
+
     it("headers contain correct values", async () => {
       const app = createApp({ responseMode: "headers" });
       const res = await app.inject({
@@ -177,6 +189,16 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
         payload: { text: "hello" },
       });
       assert.strictEqual(res.statusCode, 200);
+    });
+  });
+
+  describe("disableUi", () => {
+    it("GET / returns 404 with error when UI is disabled", async () => {
+      const app = createApp({ disableUi: true });
+      const res = await app.inject({ method: "GET", url: "/" });
+      assert.strictEqual(res.statusCode, 404);
+      const body = JSON.parse(res.body);
+      assert.strictEqual(body.error, "UI is disabled");
     });
   });
 

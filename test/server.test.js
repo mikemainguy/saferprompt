@@ -219,6 +219,29 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
       assert.ok(res.body.includes('id="tab-docker"'), "missing Docker panel");
     });
 
+    it("GET /llms.txt returns plain text", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/llms.txt" });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(res.headers["content-type"].includes("text/plain"));
+      assert.ok(res.body.includes("SaferPrompt"));
+    });
+
+    it("GET /llms.txt is accessible with API key enabled", async () => {
+      const app = createApp({ apiKey: "test-secret" });
+      const res = await app.inject({ method: "GET", url: "/llms.txt" });
+      assert.strictEqual(res.statusCode, 200);
+    });
+
+    it("GET /api/openapi.json includes /api/detect path", async () => {
+      const app = createApp();
+      const res = await app.inject({ method: "GET", url: "/api/openapi.json" });
+      assert.strictEqual(res.statusCode, 200);
+      const spec = JSON.parse(res.body);
+      assert.ok(spec.paths["/api/detect"], "OpenAPI spec should include /api/detect path");
+      assert.ok(spec.paths["/api/detect"].post, "OpenAPI spec should include POST method for /api/detect");
+    });
+
     it("GET / renders markdown as HTML in doc panels", async () => {
       const app = createApp();
       const res = await app.inject({ method: "GET", url: "/" });

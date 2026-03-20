@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY download-model.js index.js server.js createApp.js logger.js ./
+COPY download-model.js index.js server.js createApp.js logger.js llms.txt ./
+COPY README.md PROTOCOLCONFIG.md DOCKER.md ./
 RUN node --max-old-space-size=4096 download-model.js
 
 # Stage 2: Production image
@@ -21,6 +22,8 @@ COPY --from=build /app/index.js ./
 COPY --from=build /app/server.js ./
 COPY --from=build /app/createApp.js ./
 COPY --from=build /app/logger.js ./
+COPY --from=build /app/llms.txt ./
+COPY --from=build /app/README.md /app/PROTOCOLCONFIG.md /app/DOCKER.md ./
 
 ENV LOCAL_MODELS_ONLY=true
 ENV PORT=3000

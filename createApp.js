@@ -56,31 +56,40 @@ export function createApp({
     },
   });
 
-  // API key hook — only applied when apiKey is set
-  fastify.addHook("onRequest", async (request, reply) => {
-    if (!apiKey) return;
-    if (request.url === "/") return;
-    const provided = request.headers["x-api-key"];
-    if (provided !== apiKey) {
-      reply
-        .code(401)
-        .header("www-authenticate", 'Bearer realm="saferprompt"')
-        .send({ error: "Invalid or missing x-api-key header" });
-    }
-  });
-
-  // Serve the test UI (unless disabled)
-  if (disableUi) {
-    fastify.get("/", async (_request, reply) => {
-      reply.code(404).send({ error: "UI is disabled" });
+  // Register all routes inside a plugin so they are added after @fastify/swagger
+  // loads its onRoute hook — this ensures swagger discovers every route schema.
+  fastify.register(function routes(instance, _opts, done) {
+    // Serve llms.txt (always public)
+    const llmsTxt = readFileSync(join(__dirname, "llms.txt"), "utf8");
+    instance.get("/llms.txt", async (_request, reply) => {
+      reply.type("text/plain").send(llmsTxt);
     });
-  } else {
-  const docs = renderDocs();
-  const docTabs = docs.map((d) => `<button class="tab" data-tab="${d.id}">${d.label}</button>`).join("\n      ");
-  const docPanels = docs.map((d) => `<div class="tab-panel doc-content" id="tab-${d.id}">${d.html}</div>`).join("\n    ");
 
-  fastify.get("/", async (_request, reply) => {
-    reply.type("text/html").send(`<!DOCTYPE html>
+    // API key hook — only applied when apiKey is set
+    instance.addHook("onRequest", async (request, reply) => {
+      if (!apiKey) return;
+      if (request.url === "/" || request.url === "/llms.txt") return;
+      const provided = request.headers["x-api-key"];
+      if (provided !== apiKey) {
+        reply
+          .code(401)
+          .header("www-authenticate", 'Bearer realm="saferprompt"')
+          .send({ error: "Invalid or missing x-api-key header" });
+      }
+    });
+
+    // Serve the test UI (unless disabled)
+    if (disableUi) {
+      instance.get("/", async (_request, reply) => {
+        reply.code(404).send({ error: "UI is disabled" });
+      });
+    } else {
+    const docs = renderDocs();
+    const docTabs = docs.map((d) => `<button class="tab" data-tab="${d.id}">${d.label}</button>`).join("\n      ");
+    const docPanels = docs.map((d) => `<div class="tab-panel doc-content" id="tab-${d.id}">${d.html}</div>`).join("\n    ");
+
+    instance.get("/", async (_request, reply) => {
+      reply.type("text/html").send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -90,7 +99,9 @@ export function createApp({
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
     .container { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+    .swagger-link { font-size: 0.75rem; color: #60a5fa; text-decoration: none; border: 1px solid #334155; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    .swagger-link:hover { border-color: #60a5fa; }
     .tab-bar { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid #334155; }
     .tab { padding: 0.5rem 1rem; border: none; background: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
     .tab:hover { color: #e2e8f0; }
@@ -126,7 +137,7 @@ export function createApp({
 </head>
 <body>
   <div class="container">
-    <h1>SaferPrompt</h1>
+    <h1>SaferPrompt <a href="/api/openapi.json" class="swagger-link">OpenAPI Spec</a></h1>
     <div class="tab-bar">
       <button class="tab active" data-tab="analyzer">Analyzer</button>
       ${docTabs}
@@ -177,59 +188,69 @@ export function createApp({
   </script>
 </body>
 </html>`);
-  });
-  }
+    });
+    }
 
-  // OpenAPI spec endpoint
-  fastify.get("/api/openapi.json", async (_request, reply) => {
-    return fastify.swagger();
-  });
+    // OpenAPI spec endpoint
+    instance.get("/api/openapi.json", async (_request, reply) => {
+      return instance.swagger();
+    });
 
-  // API endpoint
-  fastify.post("/api/detect", {
-    schema: {
-      description: "Classify a text prompt as SAFE or INJECTION",
-      body: {
-        type: "object",
-        required: ["text"],
-        properties: {
-          text: { type: "string", description: "The prompt text to analyze" },
-        },
-      },
-      response: {
-        200: {
+    // API endpoint
+    instance.post("/api/detect", {
+      schema: {
+        description: "Classify a text prompt as SAFE or INJECTION",
+        body: {
           type: "object",
+          required: ["text"],
           properties: {
-            label: { type: "string", enum: ["SAFE", "INJECTION"] },
-            score: { type: "number" },
-            isInjection: { type: "boolean" },
-            ms: { type: "number" },
+            text: { type: "string", description: "The prompt text to analyze" },
+          },
+        },
+        response: {
+          200: {
+              description: "Results of analysis",
+            type: "object",
+            properties: {
+              label: {
+                  description: "SAFE or INJECTION indicating if the classification is SAFE for LLM consumption or has detected a potential injection attack",
+                  type: "string", enum: ["SAFE", "INJECTION"] },
+              score: {
+                  description: "Number between 0 and 1 that indicates confidence of classification",
+                  type: "number" },
+              isInjection: {
+                  description: "boolean indicator or true (potential injection detected) or false (classification indicates SAFE) ",
+                  type: "boolean" },
+              ms: { description: "Time (in milliseconds) taken by classifier to make determination, NOT total response processing time", type: "number" },
+            },
           },
         },
       },
-    },
-  }, async (request, reply) => {
-    const { text } = request.body || {};
-    if (!text || typeof text !== "string") {
-      reply.code(400);
-      return { error: '"text" field is required' };
-    }
-    const start = Date.now();
-    const result = await detectInjection(text);
-    const ms = Date.now() - start;
-    logResult({ text, ...result, ms });
-    if (responseMode === "body") {
+    }, async (request, reply) => {
+      const { text } = request.body || {};
+      if (!text || typeof text !== "string") {
+        reply.code(400);
+        return { error: '"text" field is required' };
+      }
+      const start = Date.now();
+      const result = await detectInjection(text);
+      const ms = Date.now() - start;
+      logResult({ text, ...result, ms });
+      if (responseMode === "body") {
+        return { ...result, ms };
+      }
+      reply.header("x-saferprompt-label", result.label);
+      reply.header("x-saferprompt-score", String(result.score));
+      reply.header("x-saferprompt-is-injection", String(result.isInjection));
+      reply.header("x-saferprompt-ms", String(ms));
+      if (responseMode === "headers") {
+        reply.code(headersSuccessCode);
+        return;
+      }
       return { ...result, ms };
-    }
-    reply.header("x-saferprompt-label", result.label);
-    reply.header("x-saferprompt-score", String(result.score));
-    reply.header("x-saferprompt-is-injection", String(result.isInjection));
-    reply.header("x-saferprompt-ms", String(ms));
-    if (responseMode === "headers") {
-      reply.code(headersSuccessCode);
-      return;
-    }
-    return { ...result, ms };
+    });
+
+    done();
   });
 
   return fastify;

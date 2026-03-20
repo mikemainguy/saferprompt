@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { createGunzip, createBrotliDecompress, createInflate } from "node:zlib";
 import Fastify from "fastify";
+import compress from "@fastify/compress";
 import swagger from "@fastify/swagger";
 import { marked } from "marked";
 import { detectInjection } from "./index.js";
@@ -35,6 +37,7 @@ function renderDocs() {
  * @param {boolean} [config.disableUi]    — disable the HTML test UI on GET /
  * @param {object} [config.fastifyOpts]   — extra Fastify constructor options (http2, https, etc.)
  * @param {object} [config.healthChecks]  — health check configuration
+ * @param {string} [config.compression]  — comma-separated encodings to enable (e.g. "gzip,br,deflate"); falsy to disable
  */
 export function createApp({
   apiKey = "",
@@ -43,6 +46,7 @@ export function createApp({
   disableUi = false,
   fastifyOpts = {},
   healthChecks = {},
+  compression = "",
 } = {}) {
   const fastify = Fastify({
     ...fastifyOpts,
@@ -60,6 +64,43 @@ export function createApp({
     },
   });
 
+  if (compression) {
+    const encodings = compression.split(",").map((s) => s.trim()).filter(Boolean);
+    if (encodings.length > 0) {
+      fastify.register(compress, {
+        encodings,
+        threshold: 0,
+      });
+    }
+  }
+
+  const decompressors = {
+    gzip: createGunzip,
+    br: createBrotliDecompress,
+    deflate: createInflate,
+  };
+
+  fastify.addHook("preParsing", (request, reply, payload, done) => {
+    const encoding = request.headers["content-encoding"];
+    if (!encoding) return done(null, payload);
+
+    const factory = decompressors[encoding];
+    if (!factory) {
+      reply.code(415).send({ error: `Unsupported Content-Encoding: ${encoding}` });
+      return;
+    }
+
+    delete request.headers["content-encoding"];
+    delete request.headers["content-length"];
+
+    const decompressor = factory();
+    decompressor.on("error", () => {
+      reply.code(400).send({ error: "Invalid compressed data" });
+    });
+
+    done(null, payload.pipe(decompressor));
+  });
+
   const metrics = createMetricsCollector(healthChecks);
 
   // Register all routes inside a plugin so they are added after @fastify/swagger
@@ -68,7 +109,8 @@ export function createApp({
     // Serve llms.txt (always public)
     const llmsTxt = readFileSync(join(__dirname, "llms.txt"), "utf8");
     instance.get("/llms.txt", async (_request, reply) => {
-      reply.type("text/plain").send(llmsTxt);
+      reply.type("text/plain");
+      return llmsTxt;
     });
 
     // API key hook — only applied when apiKey is set
@@ -87,7 +129,8 @@ export function createApp({
     // Serve the test UI (unless disabled)
     if (disableUi) {
       instance.get("/", async (_request, reply) => {
-        reply.code(404).send({ error: "UI is disabled" });
+        reply.code(404);
+        return { error: "UI is disabled" };
       });
     } else {
     const docs = renderDocs();
@@ -97,7 +140,8 @@ export function createApp({
     const uiHtml = uiTemplate.replace("{{DOC_TABS}}", docTabs).replace("{{DOC_PANELS}}", docPanels);
 
     instance.get("/", async (_request, reply) => {
-      reply.type("text/html").send(uiHtml);
+      reply.type("text/html");
+      return uiHtml;
     });
     }
 
@@ -176,7 +220,8 @@ export function createApp({
     }, async (_request, reply) => {
       const body = metrics.getHealthResponse();
       const code = body.status === "fail" ? 503 : 200;
-      reply.code(code).type(healthContentType).send(body);
+      reply.code(code).type(healthContentType);
+      return body;
     });
 
     instance.get("/health/live", {
@@ -184,7 +229,8 @@ export function createApp({
         description: "Liveness probe — process is running",
       },
     }, async (_request, reply) => {
-      reply.type(healthContentType).send(metrics.getLiveResponse());
+      reply.type(healthContentType);
+      return metrics.getLiveResponse();
     });
 
     instance.get("/health/ready", {
@@ -194,7 +240,8 @@ export function createApp({
     }, async (_request, reply) => {
       const body = metrics.getReadyResponse();
       const code = body.status === "pass" ? 200 : 503;
-      reply.code(code).type(healthContentType).send(body);
+      reply.code(code).type(healthContentType);
+      return body;
     });
 
     done();

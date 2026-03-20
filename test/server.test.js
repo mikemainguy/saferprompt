@@ -1,5 +1,6 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { gzipSync, brotliCompressSync, deflateSync } from "node:zlib";
 import { detectInjection } from "../index.js";
 import { createApp } from "../createApp.js";
 
@@ -276,6 +277,156 @@ describe("Server integration tests", { timeout: 120_000 }, () => {
           assert.ok("time" in entry, `${key} missing time`);
         }
       }
+    });
+  });
+
+  describe("Compression", () => {
+    it("returns compressed response when gzip is enabled and client accepts it", async () => {
+      const app = createApp({ compression: "gzip" });
+      const res = await app.inject({
+        method: "GET",
+        url: "/health",
+        headers: { "accept-encoding": "gzip" },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.headers["content-encoding"], "gzip");
+    });
+
+    it("returns compressed response with brotli when enabled", async () => {
+      const app = createApp({ compression: "br" });
+      const res = await app.inject({
+        method: "GET",
+        url: "/health",
+        headers: { "accept-encoding": "br" },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.headers["content-encoding"], "br");
+    });
+
+    it("negotiates best encoding from multiple options", async () => {
+      const app = createApp({ compression: "gzip,br,deflate" });
+      const res = await app.inject({
+        method: "GET",
+        url: "/health",
+        headers: { "accept-encoding": "gzip, deflate" },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(
+        ["gzip", "deflate"].includes(res.headers["content-encoding"]),
+        "should negotiate a supported encoding",
+      );
+    });
+
+    it("does not compress when compression is disabled", async () => {
+      const app = createApp();
+      const res = await app.inject({
+        method: "GET",
+        url: "/health",
+        headers: { "accept-encoding": "gzip" },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(!res.headers["content-encoding"], "should not have content-encoding header");
+    });
+  });
+
+  describe("Request decompression", () => {
+    it("gzip-compressed request succeeds", async () => {
+      const app = createApp();
+      const body = JSON.stringify({ text: "What is the capital of France?" });
+      const compressed = gzipSync(Buffer.from(body));
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "gzip",
+        },
+        body: compressed,
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const parsed = JSON.parse(res.body);
+      assert.ok("label" in parsed);
+      assert.ok("score" in parsed);
+    });
+
+    it("brotli-compressed request succeeds", async () => {
+      const app = createApp();
+      const body = JSON.stringify({ text: "What is the capital of France?" });
+      const compressed = brotliCompressSync(Buffer.from(body));
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "br",
+        },
+        body: compressed,
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const parsed = JSON.parse(res.body);
+      assert.ok("label" in parsed);
+      assert.ok("score" in parsed);
+    });
+
+    it("deflate-compressed request succeeds", async () => {
+      const app = createApp();
+      const body = JSON.stringify({ text: "What is the capital of France?" });
+      const compressed = deflateSync(Buffer.from(body));
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "deflate",
+        },
+        body: compressed,
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const parsed = JSON.parse(res.body);
+      assert.ok("label" in parsed);
+      assert.ok("score" in parsed);
+    });
+
+    it("unsupported Content-Encoding returns 415", async () => {
+      const app = createApp();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "zstd",
+        },
+        body: Buffer.from("garbage"),
+      });
+      assert.strictEqual(res.statusCode, 415);
+      const parsed = JSON.parse(res.body);
+      assert.ok(parsed.error.includes("Unsupported Content-Encoding"));
+    });
+
+    it("invalid compressed data returns error", async () => {
+      const app = createApp();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "gzip",
+        },
+        body: Buffer.from("this is not gzip data"),
+      });
+      assert.ok(res.statusCode >= 400);
+    });
+
+    it("uncompressed requests still work", async () => {
+      const app = createApp();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/detect",
+        payload: { text: "What is the capital of France?" },
+      });
+      assert.strictEqual(res.statusCode, 200);
+      const parsed = JSON.parse(res.body);
+      assert.ok("label" in parsed);
     });
   });
 

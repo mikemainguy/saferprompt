@@ -16,6 +16,7 @@ const HEALTH_CACHE_TTL_MS = parseInt(process.env.HEALTH_CACHE_TTL_MS, 10) || 500
 const HEALTH_HEAP_WARN_PERCENT = parseInt(process.env.HEALTH_HEAP_WARN_PERCENT, 10) || 85;
 const HEALTH_EVENTLOOP_WARN_MS = parseInt(process.env.HEALTH_EVENTLOOP_WARN_MS, 10) || 100;
 const HEALTH_METRICS_WINDOW_MS = parseInt(process.env.HEALTH_METRICS_WINDOW_MS, 10) || 300000;
+const COMPRESSION = process.env.COMPRESSION || "";
 
 // Resolve TLS cert and key: file paths take precedence over inline values
 let tlsCert;
@@ -54,6 +55,7 @@ const fastify = createApp({
   headersSuccessCode: HEADERS_SUCCESS_CODE,
   disableUi: DISABLE_UI,
   fastifyOpts,
+  compression: COMPRESSION,
   healthChecks: {
     checks: HEALTH_CHECKS,
     cacheTtlMs: HEALTH_CACHE_TTL_MS,

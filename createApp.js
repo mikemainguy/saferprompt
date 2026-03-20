@@ -16,6 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function renderDocs() {
   const docs = [
     { id: "readme", label: "README", file: "README.md" },
+    { id: "release-notes", label: "Release Notes", file: "RELEASE_NOTES.md" },
     { id: "protocol", label: "Protocol Config", file: "PROTOCOLCONFIG.md" },
     { id: "health", label: "Health Check", file: "HEALTH_CHECK.md" },
     { id: "docker", label: "Docker", file: "DOCKER.md" },

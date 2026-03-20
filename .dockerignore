@@ -5,5 +5,10 @@ node_modules
 models
 test
 *.md
+!README.md
+!PROTOCOLCONFIG.md
+!DOCKER.md
+!HEALTH_CHECK.md
+!RELEASE_NOTES.md
 Dockerfile
 .dockerignore
